@@ -1,0 +1,14 @@
+/* App Global Styles */
+@import "../../index.css";
+
+/* 추가적인 앱 레벨 스타일이 필요한 경우 여기에 작성 */
+.app {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}

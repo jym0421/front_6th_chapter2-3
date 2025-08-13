@@ -1,19 +1,19 @@
-import { BrowserRouter as Router } from "react-router-dom"
-import Header from "./components/Header.tsx"
-import Footer from "./components/Footer.tsx"
-import PostsManagerPage from "./pages/PostsManagerPage.tsx"
+import React from "react"
+import { AppProviders } from "./app/providers"
+import { AppRouter } from "./app/router"
+import { Header, Footer } from "./components"
 
-const App = () => {
+const App: React.FC = () => {
   return (
-    <Router>
+    <AppProviders>
       <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
-          <PostsManagerPage />
+          <AppRouter />
         </main>
         <Footer />
       </div>
-    </Router>
+    </AppProviders>
   )
 }
 
