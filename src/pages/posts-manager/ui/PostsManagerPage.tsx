@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 import {
   Button,
@@ -16,44 +17,109 @@ import { PostsTable } from "../../../widgets/posts-table"
 import { Pagination } from "../../../widgets/pagination"
 import { PostFilters } from "../../../widgets/post-filters"
 import { SearchBar } from "../../../features/post-search"
-import { PostCreateForm, PostEditForm } from "../../../features/post-crud"
+import { PostCreateForm, PostEditForm, useCreatePost, useUpdatePost, useDeletePost } from "../../../features/post-crud"
 import { CommentCreateForm, CommentEditForm } from "../../../features/comment-crud"
 import { UserProfileModal } from "../../../features/user-profile"
 import { highlightText } from "../../../shared/lib"
+import { postQueries } from "../../../entities/post"
 import { postsManagerApi } from "../api"
-import { PostsManagerState } from "../model/types"
 import { Post } from "../../../entities/post"
 import { Comment } from "../../../entities/comment"
 import { UserPreview } from "../../../entities/user"
+
+interface PostsManagerPageState {
+  // URL 파라미터 관련
+  skip: number
+  limit: number
+  searchQuery: string
+  selectedTag: string
+  sortBy: string
+  sortOrder: "asc" | "desc"
+
+  // UI 상태
+  showAddDialog: boolean
+  showEditDialog: boolean
+  showPostDetailDialog: boolean
+  showEditCommentDialog: boolean
+  showUserModal: boolean
+
+  // 선택된 항목들
+  selectedPost: Post | null
+  selectedComment: Comment | null
+  selectedUser: UserPreview | null
+
+  // 댓글 데이터 (임시)
+  comments: Record<string, Comment[]>
+}
 
 export const PostsManagerPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const queryParams = new URLSearchParams(location.search)
 
-  // 상태 관리
-  const [state, setState] = useState<PostsManagerState>({
-    posts: [],
-    total: 0,
+  // URL 파라미터에서 초기 상태 설정
+  const [state, setState] = useState<PostsManagerPageState>({
     skip: parseInt(queryParams.get("skip") || "0"),
     limit: parseInt(queryParams.get("limit") || "10"),
-    isLoading: false,
     searchQuery: queryParams.get("search") || "",
     selectedTag: queryParams.get("tag") || "",
     sortBy: queryParams.get("sortBy") || "",
     sortOrder: (queryParams.get("sortOrder") as "asc" | "desc") || "asc",
-    tags: [],
-    comments: {},
     showAddDialog: false,
     showEditDialog: false,
     showPostDetailDialog: false,
-    showAddCommentDialog: false,
     showEditCommentDialog: false,
     showUserModal: false,
     selectedPost: null,
     selectedComment: null,
     selectedUser: null,
+    comments: {},
   })
+
+  // 현재 페이지 계산
+  const currentPage = Math.floor(state.skip / state.limit)
+
+  // React Query Hooks
+  const createPostMutation = useCreatePost()
+  const updatePostMutation = useUpdatePost()
+  const deletePostMutation = useDeletePost()
+
+  // 게시물 목록 쿼리 (조건부)
+  const postsQuery = useQuery({
+    ...postQueries.list(currentPage, state.limit),
+    enabled: !state.searchQuery && !state.selectedTag,
+  })
+
+  // 검색 쿼리 (조건부)
+  const searchQuery = useQuery({
+    ...postQueries.search(state.searchQuery),
+    enabled: !!state.searchQuery && state.searchQuery.length > 0,
+  })
+
+  // 태그별 쿼리 (조건부)
+  const tagQuery = useQuery({
+    ...postQueries.byTag(state.selectedTag),
+    enabled: !!state.selectedTag && state.selectedTag !== "all",
+  })
+
+  // 태그 목록 쿼리
+  const tagsQuery = useQuery({
+    queryKey: ["tags"],
+    queryFn: () => postsManagerApi.getTags(),
+    staleTime: 10 * 60 * 1000, // 10분
+  })
+
+  // 현재 활성화된 쿼리 결과 선택
+  const getCurrentQueryResult = () => {
+    if (state.searchQuery) return searchQuery
+    if (state.selectedTag && state.selectedTag !== "all") return tagQuery
+    return postsQuery
+  }
+
+  const currentQueryResult = getCurrentQueryResult()
+  const posts = currentQueryResult.data?.posts || []
+  const total = currentQueryResult.data?.total || 0
+  const isLoading = currentQueryResult.isLoading
 
   // URL 업데이트 함수
   const updateURL = () => {
@@ -67,114 +133,63 @@ export const PostsManagerPage: React.FC = () => {
     navigate(`?${params.toString()}`)
   }
 
-  // 게시물 가져오기
-  const fetchPosts = async () => {
-    setState((prev) => ({ ...prev, isLoading: true }))
-    try {
-      const data = await postsManagerApi.getPosts({ limit: state.limit, skip: state.skip })
-      setState((prev) => ({ ...prev, posts: data.posts, total: data.total }))
-    } catch (error) {
-      console.error("게시물 가져오기 오류:", error)
-    } finally {
-      setState((prev) => ({ ...prev, isLoading: false }))
-    }
+  // 검색 핸들러
+  const handleSearch = () => {
+    setState((prev) => ({ ...prev, skip: 0 }))
+    updateURL()
   }
 
-  // 태그 가져오기
-  const fetchTags = async () => {
-    try {
-      const tags = await postsManagerApi.getTags()
-      setState((prev) => ({ ...prev, tags }))
-    } catch (error) {
-      console.error("태그 가져오기 오류:", error)
-    }
+  // 태그 변경 핸들러
+  const handleTagChange = (tag: string) => {
+    setState((prev) => ({ ...prev, selectedTag: tag, skip: 0 }))
+    updateURL()
   }
 
-  // 게시물 검색
-  const handleSearch = async () => {
-    if (!state.searchQuery) {
-      fetchPosts()
-      return
-    }
-    setState((prev) => ({ ...prev, isLoading: true }))
-    try {
-      const data = await postsManagerApi.searchPosts(state.searchQuery)
-      setState((prev) => ({ ...prev, posts: data.posts, total: data.total }))
-    } catch (error) {
-      console.error("게시물 검색 오류:", error)
-    } finally {
-      setState((prev) => ({ ...prev, isLoading: false }))
-    }
-  }
-
-  // 태그별 게시물 가져오기
-  const handleTagChange = async (tag: string) => {
-    setState((prev) => ({ ...prev, selectedTag: tag }))
-    if (!tag || tag === "all") {
-      fetchPosts()
-      return
-    }
-    setState((prev) => ({ ...prev, isLoading: true }))
-    try {
-      const data = await postsManagerApi.getPostsByTag(tag)
-      setState((prev) => ({ ...prev, posts: data.posts, total: data.total }))
-    } catch (error) {
-      console.error("태그별 게시물 가져오기 오류:", error)
-    } finally {
-      setState((prev) => ({ ...prev, isLoading: false }))
-    }
-  }
-
-  // 게시물 생성
+  // 게시물 생성 핸들러
   const handlePostCreate = async (data: { title: string; body: string; userId: string }) => {
     try {
-      const newPost = await postsManagerApi.createPost(data)
-      setState((prev) => ({
-        ...prev,
-        posts: [newPost, ...prev.posts],
-        showAddDialog: false,
-      }))
+      await createPostMutation.mutateAsync(data)
+      setState((prev) => ({ ...prev, showAddDialog: false }))
     } catch (error) {
-      console.error("게시물 추가 오류:", error)
+      console.error("게시물 생성 실패:", error)
     }
   }
 
-  // 게시물 수정
+  // 게시물 수정 핸들러
   const handlePostEdit = async (data: { title: string; body: string }) => {
     if (!state.selectedPost) return
     try {
-      const updatedPost = await postsManagerApi.updatePost(state.selectedPost.id, data)
+      await updatePostMutation.mutateAsync({
+        id: state.selectedPost.id,
+        data,
+      })
       setState((prev) => ({
         ...prev,
-        posts: prev.posts.map((post) => (post.id === updatedPost.id ? updatedPost : post)),
         showEditDialog: false,
         selectedPost: null,
       }))
     } catch (error) {
-      console.error("게시물 수정 오류:", error)
+      console.error("게시물 수정 실패:", error)
     }
   }
 
-  // 게시물 삭제
+  // 게시물 삭제 핸들러
   const handlePostDelete = async (id: string) => {
     try {
-      await postsManagerApi.deletePost(id)
-      setState((prev) => ({
-        ...prev,
-        posts: prev.posts.filter((post) => post.id !== id),
-      }))
+      await deletePostMutation.mutateAsync(id)
     } catch (error) {
-      console.error("게시물 삭제 오류:", error)
+      console.error("게시물 삭제 실패:", error)
     }
   }
 
-  // 게시물 상세 보기
+  // 게시물 상세 보기 핸들러
   const handlePostDetail = async (post: Post) => {
     setState((prev) => ({ ...prev, selectedPost: post, showPostDetailDialog: true }))
+
+    // 댓글 로드 (임시로 기존 API 사용)
     if (!state.comments[post.id]) {
       try {
         const commentsData = await postsManagerApi.getCommentsByPost(post.id)
-        // API 응답이 배열인지 객체인지 확인하고 적절히 처리
         const comments = Array.isArray(commentsData) ? commentsData : commentsData.comments || []
         setState((prev) => ({
           ...prev,
@@ -186,7 +201,7 @@ export const PostsManagerPage: React.FC = () => {
     }
   }
 
-  // 사용자 클릭
+  // 사용자 클릭 핸들러
   const handleUserClick = async (user: UserPreview) => {
     try {
       const userData = await postsManagerApi.getUserById(user.id)
@@ -196,7 +211,7 @@ export const PostsManagerPage: React.FC = () => {
     }
   }
 
-  // 댓글 생성
+  // 댓글 관련 핸들러들 (임시로 기존 로직 유지)
   const handleCommentCreate = async (data: { body: string; postId: string; userId: string }) => {
     try {
       const newComment = await postsManagerApi.createComment(data)
@@ -206,14 +221,12 @@ export const PostsManagerPage: React.FC = () => {
           ...prev.comments,
           [data.postId]: [...(prev.comments[data.postId] || []), newComment],
         },
-        showAddCommentDialog: false,
       }))
     } catch (error) {
       console.error("댓글 추가 오류:", error)
     }
   }
 
-  // 댓글 수정
   const handleCommentEdit = async (data: { body: string }) => {
     if (!state.selectedComment) return
     try {
@@ -234,7 +247,6 @@ export const PostsManagerPage: React.FC = () => {
     }
   }
 
-  // 댓글 삭제
   const handleCommentDelete = async (id: string, postId: string) => {
     try {
       await postsManagerApi.deleteComment(id)
@@ -250,7 +262,6 @@ export const PostsManagerPage: React.FC = () => {
     }
   }
 
-  // 댓글 좋아요
   const handleCommentLike = async (id: string, postId: string) => {
     const comment = state.comments[postId]?.find((c) => c.id === id)
     if (!comment) return
@@ -268,33 +279,6 @@ export const PostsManagerPage: React.FC = () => {
       console.error("댓글 좋아요 오류:", error)
     }
   }
-
-  // 초기 데이터 로드
-  useEffect(() => {
-    fetchTags()
-  }, [])
-
-  useEffect(() => {
-    if (state.selectedTag) {
-      handleTagChange(state.selectedTag)
-    } else {
-      fetchPosts()
-    }
-    updateURL()
-  }, [state.skip, state.limit, state.sortBy, state.sortOrder])
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    setState((prev) => ({
-      ...prev,
-      skip: parseInt(params.get("skip") || "0"),
-      limit: parseInt(params.get("limit") || "10"),
-      searchQuery: params.get("search") || "",
-      sortBy: params.get("sortBy") || "",
-      sortOrder: (params.get("sortOrder") as "asc" | "desc") || "asc",
-      selectedTag: params.get("tag") || "",
-    }))
-  }, [location.search])
 
   return (
     <Card className="w-full max-w-6xl mx-auto">
@@ -317,7 +301,7 @@ export const PostsManagerPage: React.FC = () => {
               onSearch={handleSearch}
             />
             <PostFilters
-              tags={state.tags}
+              tags={tagsQuery.data || []}
               selectedTag={state.selectedTag}
               sortBy={state.sortBy}
               sortOrder={state.sortOrder}
@@ -329,9 +313,9 @@ export const PostsManagerPage: React.FC = () => {
 
           {/* 게시물 테이블 */}
           <PostsTable
-            posts={state.posts}
+            posts={posts}
             searchQuery={state.searchQuery}
-            isLoading={state.isLoading}
+            isLoading={isLoading}
             onPostDetail={handlePostDetail}
             onPostEdit={(post) => setState((prev) => ({ ...prev, selectedPost: post, showEditDialog: true }))}
             onPostDelete={handlePostDelete}
@@ -343,7 +327,7 @@ export const PostsManagerPage: React.FC = () => {
           <Pagination
             skip={state.skip}
             limit={state.limit}
-            total={state.total}
+            total={total}
             onSkipChange={(skip) => setState((prev) => ({ ...prev, skip }))}
             onLimitChange={(limit) => setState((prev) => ({ ...prev, limit }))}
           />

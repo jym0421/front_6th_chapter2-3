@@ -80,3 +80,6 @@ export const postApi = {
     await postsRequests.deletePost(Number(id))
   },
 }
+
+// React Query를 위한 Query Factory export
+export { postQueries, postQueryKeys } from "./api/post.queries"

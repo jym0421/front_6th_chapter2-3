@@ -25,3 +25,6 @@ export const postCrudApi = {
     return await postApi.deletePost(id)
   },
 }
+
+// React Query Mutation Hooks
+export { useCreatePost, useUpdatePost, useDeletePost } from "./use-post-mutations"
