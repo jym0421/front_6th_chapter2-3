@@ -1,8 +1,7 @@
-import React from "react";
 import { Edit2, MessageSquare, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
-import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../shared/ui";
-import { HighlightText } from "../../shared/ui";
-import { Posts } from "../../entities/post/model";
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../shared/ui";
+import { HighlightText } from "../../../shared/ui";
+import { Posts } from "../../../entities/post/model";
 
 interface Props {
   posts: Posts["posts"];
@@ -15,7 +14,7 @@ interface Props {
   onTagClick: (tag: string) => void;
 }
 
-export const PostsTable: React.FC<Props> = ({
+export const PostsTable = ({
   posts,
   searchQuery,
   isLoading,
@@ -24,7 +23,7 @@ export const PostsTable: React.FC<Props> = ({
   onPostDelete,
   onUserClick,
   onTagClick,
-}) => {
+}: Props) => {
   if (isLoading) {
     return <div className="flex justify-center p-4">로딩 중...</div>;
   }
