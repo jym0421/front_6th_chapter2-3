@@ -1,6 +1,30 @@
 import { apiClient } from "../client";
 
-export interface UserDTO {
+export interface GetUserRequestDTO {
+  path: {
+    userId: number;
+  };
+}
+
+export interface GetUsersRequestDTO {
+  query: {
+    limit: number;
+    select: string;
+  };
+}
+
+export interface UsersResponseDTO {
+  users: {
+    id: number;
+    username: string;
+    image: string;
+  }[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface UserResponseDTO {
   id: number;
   firstName: string;
   lastName: string;
@@ -71,32 +95,14 @@ export interface UserDTO {
   role: string;
 }
 
-export interface UserPreviewDTO {
-  id: number;
-  username: string;
-  image: string;
-}
-
-export interface GetUsersRequestDTO {
-  limit: number;
-  select: string;
-}
-
-export interface UsersResponseDTO {
-  users: UserPreviewDTO[];
-  total: number;
-  skip: number;
-  limit: number;
-}
-
 export const usersRequests = {
   // 사용자 목록 조회
   getUsers: async (params: GetUsersRequestDTO) => {
-    return apiClient.get<UsersResponseDTO>(`/users?limit=${params.limit}&select=${params.select}`);
+    return apiClient.get<UsersResponseDTO>(`/users?limit=${params.query.limit}&select=${params.query.select}`);
   },
 
   // 사용자 상세 정보 조회
-  getUserById: async (id: number) => {
-    return apiClient.get<UserDTO>(`/users/${id}`);
+  getUserById: async (params: GetUserRequestDTO) => {
+    return apiClient.get<UserResponseDTO>(`/users/${params.path.userId}`);
   },
 };
