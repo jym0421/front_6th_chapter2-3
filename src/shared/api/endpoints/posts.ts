@@ -27,14 +27,27 @@ export interface GetPostsRequestDTO {
 }
 
 export interface CreatePostRequestDTO {
-  title: string;
-  body: string;
-  userId: number;
+  body: {
+    title: string;
+    body: string;
+    userId: number;
+  };
 }
 
 export interface UpdatePostRequestDTO {
-  title?: string;
-  body?: string;
+  path: {
+    postId: number;
+  };
+  body: {
+    title?: string;
+    body?: string;
+  };
+}
+
+export interface DeletePostRequestDTO {
+  path: {
+    postId: number;
+  };
 }
 
 export interface PostsResponseDTO {
@@ -67,16 +80,16 @@ export const postsRequests = {
 
   // 게시물 생성
   createPost: async (data: CreatePostRequestDTO) => {
-    return apiClient.post<PostDTO>("/posts/add", data);
+    return apiClient.post<PostDTO>("/posts/add", data.body);
   },
 
   // 게시물 수정
-  updatePost: async (id: number, data: UpdatePostRequestDTO) => {
-    return apiClient.put<PostDTO>(`/posts/${id}`, data);
+  updatePost: async (params: UpdatePostRequestDTO) => {
+    return apiClient.put<PostDTO>(`/posts/${params.path.postId}`, params.body);
   },
 
   // 게시물 삭제
-  deletePost: async (id: number) => {
-    return apiClient.delete<void>(`/posts/${id}`);
+  deletePost: async (params: DeletePostRequestDTO) => {
+    return apiClient.delete<void>(`/posts/${params.path.postId}`);
   },
 };

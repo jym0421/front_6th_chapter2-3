@@ -1,8 +1,6 @@
 import { UsersResponseDTO } from "../../../shared/api/endpoints/users";
-import { PostsResponseDTO, GetPostsRequestDTO } from "../../../shared/api/endpoints/posts";
-import { GetUsersRequestDTO } from "../../../shared/api/endpoints/users";
+import { PostsResponseDTO } from "../../../shared/api/endpoints/posts";
 import { Posts } from "../model";
-import { GetPostsParams } from "./post";
 
 export const mapDTOToPostsEntitiy = (postsDto: PostsResponseDTO, usersDto: UsersResponseDTO): Posts => {
   const posts = postsDto.posts.map((post) => {
@@ -18,24 +16,5 @@ export const mapDTOToPostsEntitiy = (postsDto: PostsResponseDTO, usersDto: Users
     total: postsDto.total,
     limit: postsDto.limit,
     skip: postsDto.skip,
-  };
-};
-
-export const mapEntityToGetPostsRequestDTO = (
-  params: GetPostsParams,
-): { posts: GetPostsRequestDTO; users: GetUsersRequestDTO } => {
-  return {
-    posts: {
-      query: {
-        limit: params.limit,
-        skip: params.skip,
-      },
-    },
-    users: {
-      query: {
-        limit: params.limit,
-        select: params.select,
-      },
-    },
   };
 };
