@@ -20,8 +20,10 @@ export interface TagDTO {
 }
 
 export interface GetPostsRequestDTO {
-  limit: number;
-  skip: number;
+  query: {
+    limit: number;
+    skip: number;
+  };
 }
 
 export interface CreatePostRequestDTO {
@@ -45,7 +47,7 @@ export interface PostsResponseDTO {
 export const postsRequests = {
   // 게시물 목록 조회
   getPosts: async (params: GetPostsRequestDTO) => {
-    return apiClient.get<PostsResponseDTO>(`/posts?limit=${params.limit}&skip=${params.skip}`);
+    return apiClient.get<PostsResponseDTO>(`/posts?limit=${params.query.limit}&skip=${params.query.skip}`);
   },
 
   // 게시물 검색
