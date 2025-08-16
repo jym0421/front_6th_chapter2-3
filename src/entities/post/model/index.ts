@@ -20,9 +20,3 @@ export interface Posts {
   skip: number;
   limit: number;
 }
-
-export interface GetPostsParams {
-  limit: number;
-  skip: number;
-  select: string;
-}

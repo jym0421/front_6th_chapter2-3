@@ -1,7 +1,8 @@
 import { UsersResponseDTO } from "../../../shared/api/endpoints/users";
 import { PostsResponseDTO, GetPostsRequestDTO } from "../../../shared/api/endpoints/posts";
 import { GetUsersRequestDTO } from "../../../shared/api/endpoints/users";
-import { GetPostsParams, Posts } from "../model";
+import { Posts } from "../model";
+import { GetPostsParams } from "./post";
 
 export const mapDTOToPostsEntitiy = (postsDto: PostsResponseDTO, usersDto: UsersResponseDTO): Posts => {
   const posts = postsDto.posts.map((post) => {
